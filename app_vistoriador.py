@@ -87,34 +87,46 @@ def make_client():
 ID_RE = re.compile(r'/d/([a-zA-Z0-9-_]+)')
 def extract_sheet_id(s: str) -> Optional[str]:
     s = (s or "").strip()
-    if not s: return None
+    if not s:
+        return None
     m = ID_RE.search(s)
-    if m: return m.group(1)
-    if re.fullmatch(r'[a-zA-Z0-9-_]{20,}', s): return s
+    if m:
+        return m.group(1)
+    if re.fullmatch(r'[a-zA-Z0-9-_]{20,}', s):
+        return s
     return None
 
 # ---- helpers diversos
 def parse_date_any(x):
-    if pd.isna(x) or x == "": return pd.NaT
+    if pd.isna(x) or x == "":
+        return pd.NaT
     s = str(x).strip()
     for fmt in ("%d/%m/%Y", "%Y-%m-%d", "%d-%m-%Y"):
-        try: return datetime.strptime(s, fmt).date()
-        except: pass
-    try: return pd.to_datetime(s).date()
-    except: return pd.NaT
+        try:
+            return datetime.strptime(s, fmt).date()
+        except:
+            pass
+    try:
+        return pd.to_datetime(s).date()
+    except:
+        return pd.NaT
 
-def _upper_strip(x): return str(x).upper().strip() if pd.notna(x) else ""
+def _upper_strip(x):
+    return str(x).upper().strip() if pd.notna(x) else ""
 
 def infer_year_month_from_sheet(sh_title: str, df_data: pd.DataFrame) -> Optional[str]:
     m = re.search(r'(\d{2})/(\d{4})', sh_title or "")
-    if m: return f"{m.group(2)}-{m.group(1)}"
+    if m:
+        return f"{m.group(2)}-{m.group(1)}"
     if "DATA" in df_data.columns:
         d = df_data["DATA"].dropna()
         if len(d):
             try:
                 dd = min(d)
-                if isinstance(dd, date): return f"{dd.year}-{dd.month:02d}"
-            except: pass
+                if isinstance(dd, date):
+                    return f"{dd.year}-{dd.month:02d}"
+            except:
+                pass
     return None
 
 # =========================
@@ -137,6 +149,7 @@ def read_one_sheet(gs_client, sheet_id: str) -> Tuple[pd.DataFrame, pd.DataFrame
         req = [col_unid, col_data, col_chas, (col_per or col_dig)]
         if any(r is None for r in req):
             raise ValueError(f"Planilha {title}: precisa conter UNIDADE, DATA, CHASSI, PERITO/DIGITADOR.")
+
         data[col_unid] = data[col_unid].map(_upper_strip)
         data[col_chas] = data[col_chas].map(_upper_strip)
         data["__DATA__"] = data[col_data].apply(parse_date_any)
@@ -173,12 +186,16 @@ def read_one_sheet(gs_client, sheet_id: str) -> Tuple[pd.DataFrame, pd.DataFrame
         dfm.columns = [c.strip().upper() for c in dfm.columns]
         ren = {}
         for cand in ["META_MENSAL","META MEN SAL","META_MEN SAL","META_MEN.SAL","META MENSA"]:
-            if cand in dfm.columns: ren[cand] = "META_MENSAL"
+            if cand in dfm.columns:
+                ren[cand] = "META_MENSAL"
         for cand in ["DIAS UTEIS","DIAS ÚTEIS","DIAS_UTEIS"]:
-            if cand in dfm.columns: ren[cand] = "DIAS_UTEIS"
+            if cand in dfm.columns:
+                ren[cand] = "DIAS_UTEIS"
         dfm = dfm.rename(columns=ren)
-        if "VISTORIADOR" in dfm.columns: dfm["VISTORIADOR"] = dfm["VISTORIADOR"].map(_upper_strip)
-        if "UNIDADE" in dfm.columns:     dfm["UNIDADE"] = dfm["UNIDADE"].astype(str).map(_upper_strip)
+        if "VISTORIADOR" in dfm.columns:
+            dfm["VISTORIADOR"] = dfm["VISTORIADOR"].map(_upper_strip)
+        if "UNIDADE" in dfm.columns:
+            dfm["UNIDADE"] = dfm["UNIDADE"].astype(str).map(_upper_strip)
         dfm["TIPO"] = dfm.get("TIPO","").astype(str).map(_upper_strip)
         dfm["META_MENSAL"] = pd.to_numeric(dfm.get("META_MENSAL",0), errors="coerce").fillna(0).astype(int)
         dfm["DIAS_UTEIS"]  = pd.to_numeric(dfm.get("DIAS_UTEIS",0),  errors="coerce").fillna(0).astype(int)
@@ -234,8 +251,10 @@ all_df, all_metas = [], []
 for sid in sheet_ids:
     try:
         dfi, dmf, _ = read_one_sheet(client, sid)
-        if not dfi.empty: all_df.append(dfi)
-        if not dmf.empty: all_metas.append(dmf)
+        if not dfi.empty:
+            all_df.append(dfi)
+        if not dmf.empty:
+            all_metas.append(dmf)
     except Exception:
         pass
 
@@ -264,16 +283,25 @@ _init_state()
 unidades_opts = sorted([u for u in df[col_unid].dropna().unique()])
 vist_opts = sorted([v for v in df["VISTORIADOR"].dropna().unique() if v])
 
-def cb_sel_all_vists(): st.session_state.vists_tmp = vist_opts[:] ; st.rerun()
-def cb_clear_vists():   st.session_state.vists_tmp = []         ; st.rerun()
-def cb_sel_all_unids(): st.session_state.unids_tmp = unidades_opts[:] ; st.rerun()
-def cb_clear_unids():   st.session_state.unids_tmp = []               ; st.rerun()
+def cb_sel_all_vists():
+    st.session_state.vists_tmp = vist_opts[:]
+    st.rerun()
+def cb_clear_vists():
+    st.session_state.vists_tmp = []
+    st.rerun()
+def cb_sel_all_unids():
+    st.session_state.unids_tmp = unidades_opts[:]
+    st.rerun()
+def cb_clear_unids():
+    st.session_state.unids_tmp = []
+    st.rerun()
 
 # =========================
 # Filtros (UI)
 # =========================
 st.subheader("🔎 Filtros")
 
+# Unidades
 colU1, colU2 = st.columns([4,2])
 with colU1:
     st.multiselect("Unidades", options=unidades_opts, key="unids_tmp")
@@ -282,16 +310,42 @@ with colU2:
     b1.button("Selecionar todas (Unid.)", use_container_width=True, on_click=cb_sel_all_unids)
     b2.button("Limpar (Unid.)", use_container_width=True, on_click=cb_clear_unids)
 
+# ===== BLOCO: MÊS DE REFERÊNCIA + PERÍODO (DENTRO DO MÊS) =====
 datas_validas = [d for d in df["__DATA__"] if isinstance(d, date)]
-dmin = min(datas_validas) if datas_validas else date.today()
-dmax = max(datas_validas) if datas_validas else date.today()
-st.session_state.setdefault("dt_ini", dmin)
-st.session_state.setdefault("dt_fim", dmax)
+if not datas_validas:
+    st.error("Base sem datas válidas em __DATA__.")
+    st.stop()
 
-colD1, colD2 = st.columns(2)
-with colD1: st.date_input("Data inicial", key="dt_ini", format="DD/MM/YYYY")
-with colD2: st.date_input("Data final",   key="dt_fim", format="DD/MM/YYYY")
+ser_datas = pd.Series(datas_validas)
+ym_all = sorted(ser_datas.map(lambda d: f"{d.year}-{d.month:02d}").unique().tolist())
+label_map = {f"{m[5:]}/{m[:4]}": m for m in ym_all}
 
+sel_label = st.selectbox(
+    "Mês de referência",
+    options=list(label_map.keys()),
+    index=len(ym_all) - 1  # último mês disponível
+)
+ym_sel = label_map[sel_label]
+ref_year, ref_month = int(ym_sel[:4]), int(ym_sel[5:7])
+
+datas_mes = [d for d in datas_validas if d.year == ref_year and d.month == ref_month]
+min_d = min(datas_mes)
+max_d = max(datas_mes)
+
+drange = st.date_input(
+    "Período dentro do mês",
+    value=(min_d, max_d),
+    min_value=min_d,
+    max_value=max_d,
+    format="DD/MM/YYYY",
+    key="dt_range"
+)
+if isinstance(drange, tuple) and len(drange) == 2:
+    start_d, end_d = drange
+else:
+    start_d, end_d = min_d, max_d
+
+# Vistoriadores
 colV1, colV2 = st.columns([4,2])
 with colV1:
     st.multiselect("Vistoriadores", options=vist_opts, key="vists_tmp")
@@ -304,10 +358,20 @@ with colV2:
 # Aplicar filtros (view é a base para TUDO)
 # =========================
 view = df.copy()
+
+# filtro por unidade
 if st.session_state.unids_tmp:
     view = view[view[col_unid].isin(st.session_state.unids_tmp)]
-if st.session_state.dt_ini and st.session_state.dt_fim:
-    view = view[(view["__DATA__"] >= st.session_state.dt_ini) & (view["__DATA__"] <= st.session_state.dt_fim)]
+
+# filtro pelo mês selecionado
+view = view[view["__DATA__"].apply(
+    lambda d: isinstance(d, date) and d.year == ref_year and d.month == ref_month
+)]
+
+# filtro pelo período dentro do mês
+view = view[(view["__DATA__"] >= start_d) & (view["__DATA__"] <= end_d)]
+
+# filtro por vistoriador
 if st.session_state.vists_tmp:
     view = view[view["VISTORIADOR"].isin(st.session_state.vists_tmp)]
 
@@ -328,7 +392,12 @@ cards = [
     (_nt("Revistorias"),    f"{revistorias_total:,}".replace(",", ".")),
     (_nt("% Revistorias"),  f"{pct_rev:,.1f}%".replace(",", "X").replace(".", ",").replace("X",".")),
 ]
-st.markdown('<div class="card-container">' + "".join([f"<div class=\'card\'><h4>{t}</h4><h2>{v}</h2></div>" for t, v in cards]) + "</div>", unsafe_allow_html=True)
+st.markdown(
+    '<div class="card-container">' +
+    "".join([f"<div class='card'><h4>{t}</h4><h2>{v}</h2></div>" for t, v in cards]) +
+    "</div>",
+    unsafe_allow_html=True
+)
 
 # =========================
 # Resumo por Vistoriador  (com filtro FIXO/MÓVEL apenas aqui)
@@ -343,7 +412,9 @@ grp = (view.groupby("VISTORIADOR", dropna=False)
        .reset_index())
 grp["LIQUIDO"] = grp["VISTORIAS"] - grp["REVISTORIAS"]
 
-def _is_workday(d): return isinstance(d, date) and d.weekday() < 5
+def _is_workday(d):
+    return isinstance(d, date) and d.weekday() < 5
+
 def _calc_wd_passados(df_view: pd.DataFrame) -> pd.DataFrame:
     if df_view.empty or "__DATA__" not in df_view.columns or "VISTORIADOR" not in df_view.columns:
         return pd.DataFrame(columns=["VISTORIADOR","DIAS_PASSADOS"])
@@ -351,7 +422,8 @@ def _calc_wd_passados(df_view: pd.DataFrame) -> pd.DataFrame:
     if not mask.any():
         vists = df_view["VISTORIADOR"].dropna().unique()
         return pd.DataFrame({"VISTORIADOR": vists, "DIAS_PASSADOS": np.zeros(len(vists), dtype=int)})
-    out = (df_view.loc[mask].groupby("VISTORIADOR")["__DATA__"].nunique().reset_index().rename(columns={"__DATA__":"DIAS_PASSADOS"}))
+    out = (df_view.loc[mask].groupby("VISTORIADOR")["__DATA__"].nunique()
+           .reset_index().rename(columns={"__DATA__":"DIAS_PASSADOS"}))
     out["DIAS_PASSADOS"] = out["DIAS_PASSADOS"].astype(int)
     return out
 
@@ -359,12 +431,13 @@ wd_passados = _calc_wd_passados(view)
 grp = grp.merge(wd_passados, on="VISTORIADOR", how="left").fillna({"DIAS_PASSADOS":0})
 grp["DIAS_PASSADOS"] = grp["DIAS_PASSADOS"].astype(int)
 
-# metas do mês mais recente no recorte
-ref_ym = None
-if not view.empty:
-    ref = max([d for d in view["__DATA__"] if isinstance(d, date)])
-    ref_ym = f"{ref.year}-{ref.month:02d}"
-metas_ref = df_metas_all[df_metas_all["__YM__"] == ref_ym].copy() if (ref_ym and not df_metas_all.empty) else pd.DataFrame()
+# metas do mês de referência selecionado
+if not df_metas_all.empty:
+    ref_ym = f"{ref_year}-{ref_month:02d}"
+    metas_ref = df_metas_all[df_metas_all["__YM__"] == ref_ym].copy()
+else:
+    metas_ref = pd.DataFrame()
+
 if not metas_ref.empty:
     metas_cols = [c for c in ["VISTORIADOR","UNIDADE","TIPO","META_MENSAL","DIAS_UTEIS"] if c in metas_ref.columns]
     grp = grp.merge(metas_ref[metas_cols], on="VISTORIADOR", how="left")
@@ -375,7 +448,9 @@ else:
     grp["DIAS_UTEIS"]  = 0
 
 for c in ["META_MENSAL","DIAS_UTEIS"]:
-    grp[c] = pd.to_numeric(grp.get(c,0), errors="coerce").fillna(0).astype(int)
+    grp[c] = pd.to_numeric(grp.get(c,0), errors="coerce").fillna(0)
+grp["META_MENSAL"] = grp["META_MENSAL"].astype(int)
+grp["DIAS_UTEIS"]  = grp["DIAS_UTEIS"].astype(int)
 
 # cálculos
 grp["META_DIA"]        = np.where(grp["DIAS_UTEIS"]>0, grp["META_MENSAL"]/grp["DIAS_UTEIS"], 0.0)
@@ -390,8 +465,14 @@ grp["TENDENCIA_%"]     = np.where(grp["META_MENSAL"]>0, (grp["PROJECAO_MES"]/grp
 grp["TIPO_NORM"] = grp.get("TIPO","").astype(str).str.upper().str.replace("MOVEL","MÓVEL").str.strip()
 grp.loc[grp["TIPO_NORM"]=="", "TIPO_NORM"] = "—"
 tipo_options = [t for t in ["FIXO","MÓVEL"] if t in grp["TIPO_NORM"].unique().tolist()]
-if "—" in grp["TIPO_NORM"].unique(): tipo_options.append("—")
-sel_tipos = st.multiselect("Tipo (filtro apenas desta tabela)", options=tipo_options, default=tipo_options, key="resumo_tipo_filter_tokyo")
+if "—" in grp["TIPO_NORM"].unique():
+    tipo_options.append("—")
+sel_tipos = st.multiselect(
+    "Tipo (filtro apenas desta tabela)",
+    options=tipo_options,
+    default=tipo_options,
+    key="resumo_tipo_filter_tokyo"
+)
 grp_tbl = grp if not sel_tipos else grp[grp["TIPO_NORM"].isin(sel_tipos)]
 
 grp_tbl = grp_tbl.sort_values(["PROJECAO_MES","LIQUIDO"], ascending=[False, False])
@@ -399,15 +480,18 @@ grp_tbl = grp_tbl.sort_values(["PROJECAO_MES","LIQUIDO"], ascending=[False, Fals
 # formatação
 fmt = grp_tbl.copy()
 def chip_tend(p):
-    if pd.isna(p): return "—"
+    if pd.isna(p):
+        return "—"
     p = float(p)
     if p >= 100: return f"{p:.0f}% 🚀"
     if p >= 95:  return f"{p:.0f}% 💪"
     if p >= 85:  return f"{p:.0f}% 😬"
     return f"{p:.0f}% 😟"
 def chip_nec(x):
-    try: v = float(x)
-    except: return "—"
+    try:
+        v = float(x)
+    except:
+        return "—"
     return "0 ✅" if v <= 0 else f"{int(round(v))} 🔥"
 
 fmt["TIPO"]            = fmt["TIPO_NORM"].map({"FIXO":"🏢 FIXO","MÓVEL":"🚗 MÓVEL"}).fillna("—")
@@ -547,7 +631,8 @@ else:
     ating_g  = (vist_tot / meta_tot * 100) if meta_tot > 0 else np.nan
 
     def chip_pct(p):
-        if pd.isna(p): return "—"
+        if pd.isna(p):
+            return "—"
         p = float(p)
         if p >= 110: emo = "🏆"
         elif p >= 100: emo = "🚀"
@@ -564,10 +649,16 @@ else:
         ("Líquido", f"{liq_tot:,}".replace(",", ".")),
         ("% Ating. (sobre geral)", chip_pct(ating_g)),
     ]
-    st.markdown('<div class="card-container">' + "".join([f"<div class=\'card\'><h4>{t}</h4><h2>{v}</h2></div>" for t, v in cards_mes]) + "</div>", unsafe_allow_html=True)
+    st.markdown(
+        '<div class="card-container">' +
+        "".join([f"<div class='card'><h4>{t}</h4><h2>{v}</h2></div>" for t, v in cards_mes]) +
+        "</div>",
+        unsafe_allow_html=True
+    )
 
     def chip_pct_row(p):
-        if pd.isna(p): return "—"
+        if pd.isna(p):
+            return "—"
         p = float(p)
         if p >= 110: emo = "🏆"
         elif p >= 100: emo = "🚀"
@@ -663,7 +754,8 @@ else:
     base_dia["ATING_DIA_%"] = np.where(base_dia["META_DIA"]>0, (base_dia["VISTORIAS_DIA"]/base_dia["META_DIA"])*100, np.nan)
 
     def chip_pct_row_dia(p):
-        if pd.isna(p): return "—"
+        if pd.isna(p):
+            return "—"
         p = float(p)
         if p >= 110: emo = "🏆"
         elif p >= 100: emo = "🚀"
@@ -718,4 +810,3 @@ else:
     render_ranking_dia(base_dia[base_dia["TIPO"] == "FIXO"], "vistoriadores FIXO")
     st.markdown("#### 🚗 MÓVEL")
     render_ranking_dia(base_dia[base_dia["TIPO"].isin(["MÓVEL","MOVEL"])], "vistoriadores MÓVEL")
-
